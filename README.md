@@ -18,6 +18,7 @@ Este backend e uma aplicacao NestJS com TypeScript e Prisma ORM, exposta por pad
 ## Modulos principais
 
 - `auth`: autenticacao e validacao de documentos.
+- `admin`: metricas administrativas, cadastro de produtos e gestao do ciclo de pedidos.
 - `catalog`: consulta e regras de catalogo de produtos.
 - `cart`: gerenciamento de carrinho.
 - `checkout`: finalizacao de compra e criacao de pedido.
@@ -189,6 +190,20 @@ Regras importantes:
 
 - Base da API: `/api/v1`
 - Healthcheck: `GET /api/v1/health`
+- Login: `POST /api/v1/auth/login`
+- Metricas admin: `GET /api/v1/admin/metrics` com `Authorization: Bearer <accessToken>`
+- Criar produto admin: `POST /api/v1/admin/products` com `Authorization: Bearer <accessToken>`
+- Pedidos admin: `GET /api/v1/admin/orders` com `Authorization: Bearer <accessToken>`
+- Atualizar status admin: `PATCH /api/v1/admin/orders/:id/status` com `Authorization: Bearer <accessToken>`
+
+## Credenciais demo
+
+Enquanto o projeto usa autenticacao em memoria para desenvolvimento local:
+
+| Perfil | E-mail | Senha | Redirecionamento |
+| --- | --- | --- | --- |
+| Cliente | `cliente@agroshop.com.br` | `Cliente@12345` | App principal |
+| Administrador | `admin@agroshop.com.br` | `Admin@12345` | Dashboard administrativo |
 
 ## Validacao antes de abrir PR
 
