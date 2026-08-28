@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 
+import { AdminModule } from './modules/admin/admin.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { CartModule } from './modules/cart/cart.module';
 import { CatalogModule } from './modules/catalog/catalog.module';
@@ -18,6 +19,7 @@ import { PrismaModule } from './common/prisma/prisma.module';
     CheckoutModule,
     OrdersModule,
     ProfileModule,
+    AdminModule,
   ],
   controllers: [HealthController],
 })
