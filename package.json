@@ -1,0 +1,44 @@
+{
+  "name": "agroshop-backend",
+  "version": "1.0.0",
+  "description": "AgroShop API built with NestJS.",
+  "private": true,
+  "scripts": {
+    "build": "nest build",
+    "build:seed": "tsc -p tsconfig.prisma.json",
+    "start": "nest start",
+    "start:prod": "node dist/main.js",
+    "start:dev": "nest start --watch",
+    "docker:start": "prisma migrate deploy && node dist-prisma/prisma/seed.js && node dist/main.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:seed": "prisma db seed",
+    "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "test:ci": "jest --runInBand --passWithNoTests"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.cjs"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.0.0",
+    "@nestjs/core": "^11.0.0",
+    "@nestjs/platform-express": "^11.0.0",
+    "@prisma/client": "^6.14.0",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.14.1",
+    "prisma": "^6.14.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.0",
+    "@nestjs/schematics": "^11.0.0",
+    "@nestjs/testing": "^11.0.0",
+    "@types/node": "^22.13.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.3"
+  }
+}

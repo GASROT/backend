@@ -1,0 +1,49 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-prisma/
+build/
+
+# TypeScript incremental cache
+*.tsbuildinfo
+
+# Test and coverage artifacts
+coverage/
+.nyc_output/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Runtime and temporary files
+tmp/
+temp/
+.cache/
+
+# NestJS / Node runtime
+.nest/
+
+# Prisma local files
+prisma/*.db
+prisma/*.db-journal
+
+# Package manager caches
+.npm/
+.pnpm-store/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

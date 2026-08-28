@@ -1,0 +1,133 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProductCategory {
+  fertilizante
+  defensivo
+  semente
+  irrigacao
+  maquinario
+  nutricao
+}
+
+enum ProductUnit {
+  kg
+  L
+  sc
+  un
+}
+
+enum ToxicClass {
+  I
+  II
+  III
+  IV
+}
+
+enum MediaType {
+  image
+  video
+}
+
+enum OrderStatus {
+  PENDENTE
+  CONFIRMADO
+  SEPARANDO
+  ENVIADO
+  ENTREGUE
+  CANCELADO
+}
+
+model Product {
+  id                    String          @id
+  name                  String
+  manufacturer          String
+  sku                   String          @unique
+  category              ProductCategory
+  subcategory           String
+  npk                   String?
+  dosage                String
+  unit                  ProductUnit
+  packageSize           String
+  price                 Decimal         @db.Decimal(10, 2)
+  oldPrice              Decimal?        @db.Decimal(10, 2)
+  pmf                   Decimal?        @db.Decimal(10, 2)
+  wholesalePrice        Decimal?        @db.Decimal(10, 2)
+  rating                Decimal         @db.Decimal(2, 1)
+  reviews               Int
+  stock                 Int
+  minMultiple           Int             @default(1)
+  mapa                  String?
+  toxicClass            ToxicClass?
+  requiresAgronomistCpf Boolean         @default(false)
+  technicalSheetUrl     String
+  seasonalStartsAt      DateTime?
+  seasonalEndsAt        DateTime?
+  description           String
+  application           String
+  marker                String
+  media                 ProductMedia[]
+  cartItems             CartItem[]
+  orderItems            OrderItem[]
+  banners               FeaturedBanner[]
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+}
+
+model ProductMedia {
+  id        String    @id
+  type      MediaType
+  title     String
+  productId String
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+}
+
+model FeaturedBanner {
+  id            String  @id
+  title         String
+  subtitle      String
+  productId     String
+  discountLabel String
+  priority      Int
+  product       Product @relation(fields: [productId], references: [id])
+}
+
+model CartItem {
+  productId String  @id
+  quantity  Int
+  product   Product @relation(fields: [productId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Order {
+  id              String      @id
+  status          OrderStatus
+  createdAt       DateTime    @default(now())
+  subtotal        Decimal     @db.Decimal(10, 2)
+  discount        Decimal     @db.Decimal(10, 2)
+  shipping        Decimal     @db.Decimal(10, 2)
+  total           Decimal     @db.Decimal(10, 2)
+  paymentMethod   String
+  shippingMethod  String
+  deliveryAddress String
+  trackingCode    String?
+  carrier         String?
+  items           OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  productId String
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
+}
