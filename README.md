@@ -198,7 +198,7 @@ Regras importantes:
 
 ## Credenciais demo
 
-Enquanto o projeto usa autenticacao em memoria para desenvolvimento local:
+As credenciais abaixo sao criadas pela seed do Prisma para desenvolvimento local:
 
 | Perfil | E-mail | Senha | Redirecionamento |
 | --- | --- | --- | --- |

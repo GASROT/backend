@@ -1,8 +1,47 @@
 import { PrismaClient } from '@prisma/client';
+import { scryptSync, randomBytes } from 'node:crypto';
 
 import { featuredBanners, products } from '../src/common/data/agroshop.seed';
 
 const prisma = new PrismaClient();
+
+function hashPassword(password: string, salt = randomBytes(16).toString('hex')) {
+  const hash = scryptSync(password, salt, 64).toString('hex');
+  return `scrypt:${salt}:${hash}`;
+}
+
+async function seedUsers() {
+  const users = [
+    {
+      id: 'customer-demo',
+      name: 'Cliente AgroShop',
+      email: 'cliente@agroshop.com.br',
+      passwordHash: hashPassword('Cliente@12345', 'agroshop-customer-demo'),
+      role: 'CUSTOMER' as const,
+      profileType: 'PF' as const,
+      document: '52998224725',
+      emailVerified: true,
+    },
+    {
+      id: 'admin-demo',
+      name: 'Administrador AgroShop',
+      email: 'admin@agroshop.com.br',
+      passwordHash: hashPassword('Admin@12345', 'agroshop-admin-demo'),
+      role: 'ADMIN' as const,
+      profileType: 'PJ' as const,
+      document: '11222333000181',
+      emailVerified: true,
+    },
+  ];
+
+  for (const user of users) {
+    await prisma.user.upsert({
+      where: { email: user.email },
+      update: user,
+      create: user,
+    });
+  }
+}
 
 const productMedia = products.flatMap((product) => [
   {
@@ -231,6 +270,7 @@ async function seedOrders() {
 }
 
 async function main() {
+  await seedUsers();
   await seedProducts();
   await seedCart();
   await seedOrders();
