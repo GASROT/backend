@@ -1,54 +1,30 @@
 import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { scryptSync, timingSafeEqual, randomBytes } from 'node:crypto';
+import { ProfileType, User, UserRole } from '@prisma/client';
 
-import { ForgotPasswordDto, LoginDto, RegisterDto, type UserRole } from './dto/auth.dto';
+import { PrismaService } from '../../common/prisma/prisma.service';
+import { ForgotPasswordDto, LoginDto, RegisterDto } from './dto/auth.dto';
 import { isValidCnpj, isValidCpf } from './document-validator';
 
-type User = {
-  id: string;
-  name: string;
-  email: string;
-  passwordHash: string;
-  role: UserRole;
-  profileType: 'PF' | 'PJ';
-  document: string;
-  emailVerified: boolean;
-  agronomistCpf?: string;
-};
-
-export type AuthenticatedUser = Omit<User, 'passwordHash' | 'document'>;
+export type AuthenticatedUser = Pick<
+  User,
+  'id' | 'name' | 'email' | 'role' | 'profileType' | 'emailVerified' | 'agronomistCpf'
+>;
 
 @Injectable()
 export class AuthService {
-  private readonly users = new Map<string, User>();
   private readonly failedLogins = new Map<string, { count: number; blockedUntil?: number }>();
   private readonly issuedTokens = new Map<string, string>();
 
-  constructor() {
-    this.users.set('cliente@agroshop.com.br', {
-      id: 'customer-demo',
-      name: 'Cliente AgroShop',
-      email: 'cliente@agroshop.com.br',
-      passwordHash: 'demo-hash:Cliente@12345',
-      role: 'CUSTOMER',
-      profileType: 'PF',
-      document: '52998224725',
-      emailVerified: true,
+  constructor(private readonly prisma: PrismaService) {}
+
+  async register(dto: RegisterDto) {
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+      select: { id: true },
     });
 
-    this.users.set('admin@agroshop.com.br', {
-      id: 'admin-demo',
-      name: 'Administrador AgroShop',
-      email: 'admin@agroshop.com.br',
-      passwordHash: 'demo-hash:Admin@12345',
-      role: 'ADMIN',
-      profileType: 'PJ',
-      document: '11222333000181',
-      emailVerified: true,
-    });
-  }
-
-  register(dto: RegisterDto) {
-    if (this.users.has(dto.email)) {
+    if (existingUser) {
       throw new BadRequestException('E-mail ja associado a um perfil.');
     }
 
@@ -63,30 +39,34 @@ export class AuthService {
       throw new BadRequestException('CPF do responsavel tecnico invalido.');
     }
 
-    const user: User = {
-      id: crypto.randomUUID(),
-      name: dto.name,
-      email: dto.email,
-      passwordHash: `demo-hash:${dto.password}`,
-      role: 'CUSTOMER',
-      profileType: dto.profileType,
-      document: dto.document,
-      emailVerified: false,
-      agronomistCpf: dto.agronomistCpf,
-    };
+    const user = await this.prisma.user.create({
+      data: {
+        id: crypto.randomUUID(),
+        name: dto.name,
+        email: dto.email,
+        passwordHash: this.hashPassword(dto.password),
+        role: UserRole.CUSTOMER,
+        profileType: dto.profileType as ProfileType,
+        document: dto.document,
+        emailVerified: false,
+        agronomistCpf: dto.agronomistCpf,
+      },
+    });
 
-    this.users.set(user.email, user);
     return this.createAuthResponse(user);
   }
 
-  login(dto: LoginDto) {
+  async login(dto: LoginDto) {
     const attempt = this.failedLogins.get(dto.email);
     if (attempt?.blockedUntil && attempt.blockedUntil > Date.now()) {
       throw new UnauthorizedException('Conta bloqueada por 15 minutos.');
     }
 
-    const user = this.users.get(dto.email);
-    if (!user || user.passwordHash !== `demo-hash:${dto.password}`) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+
+    if (!user || !this.verifyPassword(dto.password, user.passwordHash)) {
       const nextCount = (attempt?.count ?? 0) + 1;
       this.failedLogins.set(dto.email, {
         count: nextCount,
@@ -107,7 +87,7 @@ export class AuthService {
     };
   }
 
-  validateAuthorizationHeader(authorization?: string): AuthenticatedUser | null {
+  async validateAuthorizationHeader(authorization?: string): Promise<AuthenticatedUser | null> {
     const [type, token] = authorization?.split(' ') ?? [];
 
     if (type !== 'Bearer' || !token) {
@@ -115,7 +95,11 @@ export class AuthService {
     }
 
     const email = this.issuedTokens.get(token);
-    const user = email ? this.users.get(email) : undefined;
+    const user = email
+      ? await this.prisma.user.findUnique({
+          where: { email },
+        })
+      : undefined;
 
     if (!user) {
       return null;
@@ -156,5 +140,23 @@ export class AuthService {
       },
       redirectTo: user.role === 'ADMIN' ? '/admin/dashboard' : '/',
     };
+  }
+
+  private hashPassword(password: string, salt = randomBytes(16).toString('hex')) {
+    const hash = scryptSync(password, salt, 64).toString('hex');
+    return `scrypt:${salt}:${hash}`;
+  }
+
+  private verifyPassword(password: string, passwordHash: string) {
+    const [, salt, expectedHash] = passwordHash.split(':');
+
+    if (!salt || !expectedHash) {
+      return false;
+    }
+
+    const actual = Buffer.from(scryptSync(password, salt, 64).toString('hex'), 'hex');
+    const expected = Buffer.from(expectedHash, 'hex');
+
+    return actual.length === expected.length && timingSafeEqual(actual, expected);
   }
 }

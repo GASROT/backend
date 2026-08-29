@@ -12,9 +12,9 @@ type RequestWithAuthorization = {
 export class DemoAdminGuard implements CanActivate {
   constructor(private readonly authService: AuthService) {}
 
-  canActivate(context: ExecutionContext) {
+  async canActivate(context: ExecutionContext) {
     const request = context.switchToHttp().getRequest<RequestWithAuthorization>();
-    const user = this.authService.validateAuthorizationHeader(request.headers.authorization);
+    const user = await this.authService.validateAuthorizationHeader(request.headers.authorization);
 
     if (!user) {
       throw new UnauthorizedException('Token de acesso ausente ou invalido.');
