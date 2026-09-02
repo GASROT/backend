@@ -127,6 +127,7 @@ export class OrdersService {
         id: media.id,
         type: media.type,
         title: media.title,
+        url: media.url ?? undefined,
       })),
     };
   }
