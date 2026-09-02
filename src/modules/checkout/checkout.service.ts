@@ -197,6 +197,7 @@ export class CheckoutService {
             id: media.id,
             type: media.type,
             title: media.title,
+            url: media.url ?? undefined,
           })),
         },
         quantity: item.quantity,
