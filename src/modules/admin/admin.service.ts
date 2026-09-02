@@ -2,7 +2,12 @@ import { BadRequestException, Injectable, NotFoundException, UnprocessableEntity
 import { OrderStatus, ProductCategory, ProductUnit, ToxicClass } from '@prisma/client';
 
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { CreateAdminProductDto, UpdateOrderStatusDto } from './dto/admin.dto';
+import { CatalogService } from '../catalog/catalog.service';
+import {
+  CreateAdminProductDto,
+  UpdateAdminProductDto,
+  UpdateOrderStatusDto,
+} from './dto/admin.dto';
 
 const allowedOrderTransitions: Record<OrderStatus, OrderStatus[]> = {
   PENDENTE: ['CONFIRMADO', 'CANCELADO'],
@@ -15,7 +20,10 @@ const allowedOrderTransitions: Record<OrderStatus, OrderStatus[]> = {
 
 @Injectable()
 export class AdminService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly catalogService: CatalogService,
+  ) {}
 
   async getMetrics() {
     const [orders, products, lowStockCount] = await Promise.all([
@@ -120,10 +128,156 @@ export class AdminService {
       ...product,
       price: Number(product.price),
       oldPrice: product.oldPrice ? Number(product.oldPrice) : undefined,
-      pmf: product.pmf ? Number(product.pmf) : undefined,
+      pmf: product.pmf === null ? undefined : Number(product.pmf),
       wholesalePrice: product.wholesalePrice ? Number(product.wholesalePrice) : undefined,
       rating: Number(product.rating),
     };
+  }
+
+  async updateProduct(id: string, dto: UpdateAdminProductDto) {
+    const current = await this.prisma.product.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        price: true,
+        pmf: true,
+        toxicClass: true,
+        requiresAgronomistCpf: true,
+        seasonalStartsAt: true,
+        seasonalEndsAt: true,
+      },
+    });
+
+    if (!current) {
+      throw new NotFoundException('Produto nao encontrado.');
+    }
+
+    if (dto.sku) {
+      const skuOwner = await this.prisma.product.findFirst({
+        where: { sku: dto.sku, id: { not: id } },
+        select: { id: true },
+      });
+
+      if (skuOwner) {
+        throw new BadRequestException('SKU ja cadastrado.');
+      }
+    }
+
+    const effectivePrice = dto.price ?? Number(current.price);
+    const effectivePmf = dto.pmf === undefined
+      ? current.pmf === null
+        ? null
+        : Number(current.pmf)
+      : dto.pmf;
+
+    if (effectivePmf !== null && effectivePrice < effectivePmf) {
+      throw new UnprocessableEntityException(
+        'Preco de venda nao pode ser inferior ao preco minimo do fabricante.',
+      );
+    }
+
+    const effectiveToxicClass = dto.toxicClass === undefined ? current.toxicClass : dto.toxicClass;
+    const requiresAgronomistCpf =
+      dto.requiresAgronomistCpf ?? current.requiresAgronomistCpf;
+
+    if ((effectiveToxicClass === 'I' || effectiveToxicClass === 'II') && !requiresAgronomistCpf) {
+      throw new UnprocessableEntityException(
+        'Defensivos classe I/II exigem responsavel tecnico para compra.',
+      );
+    }
+
+    const effectiveSeasonalStartsAt =
+      dto.seasonalStartsAt === undefined
+        ? current.seasonalStartsAt
+        : dto.seasonalStartsAt === null
+          ? null
+          : new Date(dto.seasonalStartsAt);
+    const effectiveSeasonalEndsAt =
+      dto.seasonalEndsAt === undefined
+        ? current.seasonalEndsAt
+        : dto.seasonalEndsAt === null
+          ? null
+          : new Date(dto.seasonalEndsAt);
+
+    if (
+      effectiveSeasonalStartsAt &&
+      effectiveSeasonalEndsAt &&
+      effectiveSeasonalStartsAt > effectiveSeasonalEndsAt
+    ) {
+      throw new UnprocessableEntityException(
+        'Fim da disponibilidade sazonal deve ser posterior ao inicio.',
+      );
+    }
+
+    await this.prisma.$transaction(async (transaction) => {
+      await transaction.product.update({
+        where: { id },
+        data: {
+          name: dto.name,
+          manufacturer: dto.manufacturer,
+          sku: dto.sku,
+          category: dto.category as ProductCategory | undefined,
+          subcategory: dto.subcategory,
+          npk: dto.npk,
+          dosage: dto.dosage,
+          unit: dto.unit as ProductUnit | undefined,
+          packageSize: dto.packageSize,
+          price: dto.price,
+          oldPrice: dto.oldPrice,
+          pmf: dto.pmf,
+          wholesalePrice: dto.wholesalePrice,
+          stock: dto.stock,
+          minMultiple: dto.minMultiple,
+          mapa: dto.mapa,
+          toxicClass: dto.toxicClass as ToxicClass | null | undefined,
+          requiresAgronomistCpf: dto.requiresAgronomistCpf,
+          technicalSheetUrl: dto.technicalSheetUrl,
+          seasonalStartsAt:
+            dto.seasonalStartsAt === undefined
+              ? undefined
+              : dto.seasonalStartsAt === null
+                ? null
+                : new Date(dto.seasonalStartsAt),
+          seasonalEndsAt:
+            dto.seasonalEndsAt === undefined
+              ? undefined
+              : dto.seasonalEndsAt === null
+                ? null
+                : new Date(dto.seasonalEndsAt),
+          description: dto.description,
+          application: dto.application,
+          marker: dto.marker,
+        },
+      });
+
+      if (dto.imageUrl) {
+        const primaryImage = await transaction.productMedia.findFirst({
+          where: { productId: id, type: 'image' },
+          orderBy: { id: 'asc' },
+          select: { id: true },
+        });
+
+        if (primaryImage) {
+          await transaction.productMedia.update({
+            where: { id: primaryImage.id },
+            data: { url: dto.imageUrl },
+          });
+        } else {
+          await transaction.productMedia.create({
+            data: {
+              id: crypto.randomUUID(),
+              productId: id,
+              type: 'image',
+              title: `${dto.name ?? current.name} - imagem principal`,
+              url: dto.imageUrl,
+            },
+          });
+        }
+      }
+    });
+
+    return this.catalogService.getProduct(id);
   }
 
   async listOrdersForAdmin() {
