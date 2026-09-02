@@ -118,7 +118,7 @@ export class CatalogService {
       packageSize: product.packageSize,
       price: Number(product.price),
       oldPrice: product.oldPrice ? Number(product.oldPrice) : undefined,
-      pmf: product.pmf ? Number(product.pmf) : undefined,
+      pmf: product.pmf === null ? undefined : Number(product.pmf),
       wholesalePrice: product.wholesalePrice ? Number(product.wholesalePrice) : undefined,
       rating: Number(product.rating),
       reviews: product.reviews,
@@ -128,15 +128,28 @@ export class CatalogService {
       description: product.description,
       application: product.application,
       technicalSheetUrl: product.technicalSheetUrl,
+      seasonalStartsAt: product.seasonalStartsAt?.toISOString(),
+      seasonalEndsAt: product.seasonalEndsAt?.toISOString(),
       mapa: product.mapa ?? undefined,
       toxicClass: product.toxicClass ?? undefined,
       requiresAgronomistCpf: product.requiresAgronomistCpf,
       marker: product.marker,
-      media: product.media.map((media) => ({
-        id: media.id,
-        type: media.type,
-        title: media.title,
-      })),
+      media: product.media
+        .slice()
+        .sort((first, second) => {
+          const priority = (media: ProductMedia) => {
+            if (media.url) return 0;
+            return media.type === 'image' ? 1 : 2;
+          };
+
+          return priority(first) - priority(second) || first.id.localeCompare(second.id);
+        })
+        .map((media) => ({
+          id: media.id,
+          type: media.type,
+          title: media.title,
+          url: media.url ?? undefined,
+        })),
     };
   }
 }
