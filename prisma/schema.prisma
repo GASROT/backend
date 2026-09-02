@@ -108,6 +108,7 @@ model ProductMedia {
   id        String    @id
   type      MediaType
   title     String
+  url       String?
   productId String
   product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
