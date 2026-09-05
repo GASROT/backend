@@ -156,3 +156,16 @@ model OrderItem {
   order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product   Product @relation(fields: [productId], references: [id])
 }
+
+model ExperimentEvent {
+  id           String   @id @default(cuid())
+  experimentId String
+  variant      String
+  eventType    String
+  subjectId    String
+  occurredAt   DateTime @default(now())
+
+  @@index([experimentId, variant, eventType])
+  @@index([subjectId, experimentId])
+  @@unique([experimentId, variant, eventType, subjectId])
+}
