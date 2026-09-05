@@ -7,8 +7,9 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 export class OrdersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async listOrders() {
+  async listOrders(userId: string) {
     const orders = await this.prisma.order.findMany({
+      where: { userId },
       include: this.orderIncludes(),
       orderBy: {
         createdAt: 'desc',
@@ -18,23 +19,28 @@ export class OrdersService {
     return orders.map((order) => this.mapOrder(order));
   }
 
-  async getOrder(id: string) {
+  async getOrder(userId: string, id: string) {
     const order = await this.prisma.order.findUnique({
       where: { id },
       include: this.orderIncludes(),
     });
 
-    if (!order) throw new NotFoundException('Pedido nao encontrado.');
+    if (!order || order.userId !== userId) {
+      throw new NotFoundException('Pedido nao encontrado.');
+    }
+
     return this.mapOrder(order);
   }
 
-  async cancelOrder(id: string) {
+  async cancelOrder(userId: string, id: string) {
     const order = await this.prisma.order.findUnique({
       where: { id },
       include: this.orderIncludes(),
     });
 
-    if (!order) throw new NotFoundException('Pedido nao encontrado.');
+    if (!order || order.userId !== userId) {
+      throw new NotFoundException('Pedido nao encontrado.');
+    }
 
     if (!['PENDENTE', 'CONFIRMADO'].includes(order.status)) {
       throw new UnprocessableEntityException(
