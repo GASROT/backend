@@ -35,6 +35,15 @@ export class AuthService {
       throw new BadRequestException('CPF/CNPJ invalido.');
     }
 
+    const existingDocument = await this.prisma.user.findUnique({
+      where: { document: dto.document },
+      select: { id: true },
+    });
+
+    if (existingDocument) {
+      throw new BadRequestException('CPF/CNPJ ja associado a um perfil.');
+    }
+
     if (dto.agronomistCpf && !isValidCpf(dto.agronomistCpf)) {
       throw new BadRequestException('CPF do responsavel tecnico invalido.');
     }
