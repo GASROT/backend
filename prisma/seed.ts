@@ -43,24 +43,45 @@ async function seedUsers() {
   }
 }
 
+// Foto de vitrine por produto. Imagens tematicas de agricultura hospedadas no Unsplash.
+const productImages: Record<string, string> = {
+  'ureia-46-50kg':
+    'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=800&q=80',
+  'superfosfato-50kg':
+    'https://images.unsplash.com/photo-1611843467160-25afb8df1074?auto=format&fit=crop&w=800&q=80',
+  'map-25kg':
+    'https://images.unsplash.com/photo-1523348837708-15d4a09cfac2?auto=format&fit=crop&w=800&q=80',
+  'kcl-50kg':
+    'https://images.unsplash.com/photo-1560493676-04071c5f467b?auto=format&fit=crop&w=800&q=80',
+  'fungicida-iv-5l':
+    'https://images.unsplash.com/photo-1589923188900-85dae523342b?auto=format&fit=crop&w=800&q=80',
+  'inseticida-classe-ii':
+    'https://images.unsplash.com/photo-1620200423727-8127f75d7f53?auto=format&fit=crop&w=800&q=80',
+  'milho-hibrido':
+    'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=800&q=80',
+};
+
 const productMedia = products.flatMap((product) => [
   {
     id: `${product.id}-hero`,
     productId: product.id,
     type: 'image' as const,
     title: product.packageSize,
+    url: productImages[product.id] ?? null,
   },
   {
     id: `${product.id}-application`,
     productId: product.id,
     type: 'video' as const,
     title: product.application.slice(0, 60),
+    url: null,
   },
   {
     id: `${product.id}-sheet`,
     productId: product.id,
     type: 'image' as const,
     title: 'Ficha tecnica',
+    url: null,
   },
 ]);
 

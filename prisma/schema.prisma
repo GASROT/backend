@@ -66,6 +66,8 @@ model User {
   agronomistCpf  String?
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
+  cartItems      CartItem[]
+  orders         Order[]
 }
 
 model Product {
@@ -124,15 +126,22 @@ model FeaturedBanner {
 }
 
 model CartItem {
-  productId String  @id
+  userId    String
+  productId String
   quantity  Int
-  product   Product @relation(fields: [productId], references: [id])
+  product   Product  @relation(fields: [productId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@id([userId, productId])
+  @@index([userId])
 }
 
 model Order {
   id              String      @id
+  userId          String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   status          OrderStatus
   createdAt       DateTime    @default(now())
   subtotal        Decimal     @db.Decimal(10, 2)
@@ -145,6 +154,8 @@ model Order {
   trackingCode    String?
   carrier         String?
   items           OrderItem[]
+
+  @@index([userId, createdAt])
 }
 
 model OrderItem {
