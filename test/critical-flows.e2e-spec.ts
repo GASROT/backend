@@ -4,6 +4,7 @@ import request from 'supertest';
 
 import { AuthController } from '../src/modules/auth/auth.controller';
 import { AuthService } from '../src/modules/auth/auth.service';
+import { RequireAuthGuard } from '../src/modules/auth/require-auth.guard';
 import { CheckoutController } from '../src/modules/checkout/checkout.controller';
 import { CheckoutService } from '../src/modules/checkout/checkout.service';
 import { OrdersController } from '../src/modules/orders/orders.controller';
@@ -14,6 +15,9 @@ describe('Critical HTTP flows (e2e)', () => {
 
   const authService = {
     login: jest.fn().mockResolvedValue({ user: { id: 'user-1' }, tokens: { accessToken: 'token' } }),
+    validateAuthorizationHeader: jest.fn().mockImplementation(async (authorization?: string) => {
+      return authorization === 'Bearer token' ? { id: 'user-1', role: 'CUSTOMER' } : null;
+    }),
   };
   const checkoutService = {
     confirmOrder: jest.fn().mockResolvedValue({ id: 'AG-2026-100001', status: 'PENDENTE' }),
@@ -29,6 +33,7 @@ describe('Critical HTTP flows (e2e)', () => {
         { provide: AuthService, useValue: authService },
         { provide: CheckoutService, useValue: checkoutService },
         { provide: OrdersService, useValue: ordersService },
+        RequireAuthGuard,
       ],
     }).compile();
 
@@ -51,14 +56,23 @@ describe('Critical HTTP flows (e2e)', () => {
   it('creates an order through the checkout API contract', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/checkout/orders')
+      .set('Authorization', 'Bearer token')
       .send({ paymentMethod: 'pix', shippingMethod: 'pac', deliveryCep: '14000000' })
       .expect(201)
       .expect(({ body }) => expect(body.status).toBe('PENDENTE'));
   });
 
+  it('rejects checkout without authentication', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/checkout/orders')
+      .send({ paymentMethod: 'pix', shippingMethod: 'pac', deliveryCep: '14000000' })
+      .expect(401);
+  });
+
   it('cancels an eligible order through the orders API contract', async () => {
     await request(app.getHttpServer())
       .post('/api/v1/orders/AG-2026-100001/cancel')
+      .set('Authorization', 'Bearer token')
       .expect(201)
       .expect(({ body }) => expect(body.status).toBe('CANCELADO'));
   });
