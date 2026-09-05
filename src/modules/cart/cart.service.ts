@@ -12,8 +12,9 @@ export class CartService {
     private readonly profileService: ProfileService,
   ) {}
 
-  async getCart() {
+  async getCart(userId: string) {
     const cartItems = await this.prisma.cartItem.findMany({
+      where: { userId },
       include: {
         product: {
           include: {
@@ -52,63 +53,69 @@ export class CartService {
     };
   }
 
-  async addItem(dto: AddCartItemDto) {
+  async addItem(userId: string, dto: AddCartItemDto) {
     const product = await this.getProduct(dto.productId);
     await this.assertPurchasable(product.id, dto.quantity);
 
-    const current = await this.prisma.cartItem.findUnique({ where: { productId: product.id } });
+    const current = await this.prisma.cartItem.findUnique({
+      where: { userId_productId: { userId, productId: product.id } },
+    });
     const nextQuantity = (current?.quantity ?? 0) + dto.quantity;
     await this.assertPurchasable(product.id, nextQuantity);
 
     await this.prisma.cartItem.upsert({
       where: {
-        productId: product.id,
+        userId_productId: { userId, productId: product.id },
       },
       update: {
         quantity: nextQuantity,
       },
       create: {
+        userId,
         productId: product.id,
         quantity: nextQuantity,
       },
     });
 
-    return this.getCart();
+    return this.getCart(userId);
   }
 
-  async updateItem(productId: string, dto: UpdateCartItemDto) {
+  async updateItem(userId: string, productId: string, dto: UpdateCartItemDto) {
     await this.assertPurchasable(productId, dto.quantity);
 
-    const current = await this.prisma.cartItem.findUnique({ where: { productId } });
+    const current = await this.prisma.cartItem.findUnique({
+      where: { userId_productId: { userId, productId } },
+    });
     if (!current) {
       throw new NotFoundException('Item nao encontrado no carrinho.');
     }
 
     await this.prisma.cartItem.update({
       where: {
-        productId,
+        userId_productId: { userId, productId },
       },
       data: {
         quantity: dto.quantity,
       },
     });
 
-    return this.getCart();
+    return this.getCart(userId);
   }
 
-  async removeItem(productId: string) {
+  async removeItem(userId: string, productId: string) {
     await this.prisma.cartItem.deleteMany({
       where: {
+        userId,
         productId,
       },
     });
 
-    return this.getCart();
+    return this.getCart(userId);
   }
 
-  async clear() {
-    await this.prisma.cartItem.deleteMany();
-    return this.getCart();
+  async clear(userId: string) {
+    await this.prisma.cartItem.deleteMany({ where: { userId } });
+    return this.getCart(userId);
   }
 
   private async assertPurchasable(productId: string, quantity: number) {
