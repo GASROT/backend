@@ -13,13 +13,16 @@ FROM deps AS build
 
 WORKDIR /app
 
-COPY nest-cli.json tsconfig.json tsconfig.prisma.json ./
+COPY eslint.config.cjs jest.config.cjs nest-cli.json tsconfig.json tsconfig.prisma.json tsconfig.spec.json ./
 COPY prisma ./prisma
 COPY src ./src
+COPY test ./test
 
 RUN npx prisma generate \
+    && npm run lint \
     && npm run typecheck \
     && npm run test:ci \
+    && npm run test:e2e \
     && npm run build \
     && npm run build:seed
 

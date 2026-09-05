@@ -14,8 +14,12 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
     "typecheck": "tsc --noEmit",
+    "lint": "eslint src test --max-warnings 0",
     "test": "jest",
-    "test:ci": "jest --runInBand --passWithNoTests"
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage --runInBand",
+    "test:ci": "jest --ci --coverage --runInBand",
+    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand"
   },
   "prisma": {
     "seed": "node prisma/seed.cjs"
@@ -37,8 +41,13 @@
     "@nestjs/testing": "^11.0.0",
     "@types/node": "^22.13.0",
     "jest": "^29.7.0",
+    "supertest": "^7.1.4",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
+    "@types/jest": "^29.5.14",
+    "@types/supertest": "^6.0.3",
+    "eslint": "10.9.1",
+    "typescript-eslint": "8.69.0",
     "typescript": "^6.0.3"
   }
 }
