@@ -25,14 +25,14 @@ export class CheckoutService {
     };
   }
 
-  async quoteShipping(dto: ShippingQuoteDto) {
+  async quoteShipping(userId: string, dto: ShippingQuoteDto) {
     const freeThresholdByUf: Record<string, number> = {
       SP: 500,
       PR: 500,
       SC: 500,
       RS: 500,
     };
-    const cart = await this.cartService.getCart();
+    const cart = await this.cartService.getCart(userId);
     const freeThreshold = freeThresholdByUf[dto.uf.toUpperCase()] ?? 900;
 
     return [
@@ -60,12 +60,13 @@ export class CheckoutService {
     ];
   }
 
-  async confirmOrder(dto: ConfirmOrderDto) {
-    if (dto.idempotencyKey && this.processedOrders.has(dto.idempotencyKey)) {
-      return this.processedOrders.get(dto.idempotencyKey);
+  async confirmOrder(userId: string, dto: ConfirmOrderDto) {
+    const idempotencyKey = dto.idempotencyKey ? `${userId}:${dto.idempotencyKey}` : null;
+    if (idempotencyKey && this.processedOrders.has(idempotencyKey)) {
+      return this.processedOrders.get(idempotencyKey);
     }
 
-    const cart = await this.cartService.getCart();
+    const cart = await this.cartService.getCart(userId);
     if (cart.items.length === 0) {
       throw new BadRequestException('Carrinho vazio.');
     }
@@ -94,6 +95,7 @@ export class CheckoutService {
       const createdOrder = await tx.order.create({
         data: {
           id: `AG-${new Date().getFullYear()}-${Math.floor(100000 + Math.random() * 899999)}`,
+          userId,
           status: 'PENDENTE',
           paymentMethod: dto.paymentMethod,
           shippingMethod: dto.shippingMethod,
@@ -123,7 +125,7 @@ export class CheckoutService {
         },
       });
 
-      await tx.cartItem.deleteMany();
+      await tx.cartItem.deleteMany({ where: { userId } });
 
       return createdOrder;
     });
@@ -138,8 +140,8 @@ export class CheckoutService {
             : { cardTokenized: true, status: 'pending_gateway_callback' },
     };
 
-    if (dto.idempotencyKey) {
-      this.processedOrders.set(dto.idempotencyKey, response);
+    if (idempotencyKey) {
+      this.processedOrders.set(idempotencyKey, response);
     }
 
     return response;

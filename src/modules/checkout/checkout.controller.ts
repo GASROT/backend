@@ -1,9 +1,13 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 
+import { CurrentUser } from '../auth/current-user.decorator';
+import { RequireAuthGuard } from '../auth/require-auth.guard';
+import type { AuthenticatedUser } from '../auth/auth.service';
 import { CheckoutService } from './checkout.service';
 import { CepDto, ConfirmOrderDto, ShippingQuoteDto } from './dto/checkout.dto';
 
 @Controller('checkout')
+@UseGuards(RequireAuthGuard)
 export class CheckoutController {
   constructor(private readonly checkoutService: CheckoutService) {}
 
@@ -13,13 +17,12 @@ export class CheckoutController {
   }
 
   @Post('shipping/quote')
-  quoteShipping(@Body() dto: ShippingQuoteDto) {
-    return this.checkoutService.quoteShipping(dto);
+  quoteShipping(@CurrentUser() user: AuthenticatedUser, @Body() dto: ShippingQuoteDto) {
+    return this.checkoutService.quoteShipping(user.id, dto);
   }
 
   @Post('orders')
-  confirmOrder(@Body() dto: ConfirmOrderDto) {
-    return this.checkoutService.confirmOrder(dto);
+  confirmOrder(@CurrentUser() user: AuthenticatedUser, @Body() dto: ConfirmOrderDto) {
+    return this.checkoutService.confirmOrder(user.id, dto);
   }
 }
-
